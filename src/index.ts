@@ -63,6 +63,10 @@ export default {
       return json({ ok: true, ignored: "unsupported_action", action: payload.action });
     }
 
+    if (event === "pull_request" && isDraftPullRequestNotification(payload)) {
+      return json({ ok: true, ignored: "draft_pull_request" });
+    }
+
     const notification = extractNotification(event as GitHubEvent, payload);
     if (!notification) {
       return json({ ok: true, ignored: "no_notification" });
@@ -164,6 +168,10 @@ function extractNotification(event: GitHubEvent, payload: any): Notification | n
   }
 
   return null;
+}
+
+function isDraftPullRequestNotification(payload: any): boolean {
+  return ["opened", "reopened"].includes(payload.action) && payload.pull_request?.draft === true;
 }
 
 async function isExternalContributor(env: Env, notification: Notification): Promise<boolean> {

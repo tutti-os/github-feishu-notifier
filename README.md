@@ -27,6 +27,10 @@ Supported actions:
 - `ready_for_review`
 - `created`
 
+Draft PR `opened` and `reopened` events are ignored. The Worker notifies for
+PRs that are opened as reviewable immediately, and for draft PRs only when they
+become `ready_for_review`.
+
 The Worker does not notify for review events, workflow events, pushes, releases, or internal organization member activity.
 
 ## Cloudflare
