@@ -5,6 +5,7 @@ interface Env {
   GITHUB_TOKEN?: string;
   ORG_LOGIN: string;
   ENVIRONMENT: string;
+  INTERNAL_TEAM_SLUG?: string;
   DELIVERIES?: KVNamespace;
 }
 
@@ -190,19 +191,43 @@ async function isExternalContributor(env: Env, notification: Notification): Prom
     "user-agent": "tutti-github-feishu-notifier"
   };
 
-  const member = await fetch(
-    `https://api.github.com/orgs/${notification.orgLogin}/members/${notification.senderLogin}`,
-    { headers }
-  );
-  if (member.status === 204) {
+  const checks = await Promise.all([
+    githubStatus(
+      `https://api.github.com/orgs/${notification.orgLogin}/members/${notification.senderLogin}`,
+      headers
+    ),
+    env.INTERNAL_TEAM_SLUG
+      ? githubStatus(
+          `https://api.github.com/orgs/${notification.orgLogin}/teams/${env.INTERNAL_TEAM_SLUG}/memberships/${notification.senderLogin}`,
+          headers
+        )
+      : Promise.resolve(404),
+    githubStatus(
+      `https://api.github.com/repos/${notification.repoFullName}/collaborators/${notification.senderLogin}`,
+      headers
+    )
+  ]);
+
+  const [memberStatus, teamStatus, collaboratorStatus] = checks;
+  if (memberStatus === 204 || teamStatus === 200 || collaboratorStatus === 204) {
     return false;
   }
 
-  const collaborator = await fetch(
-    `https://api.github.com/repos/${notification.repoFullName}/collaborators/${notification.senderLogin}`,
-    { headers }
-  );
-  return collaborator.status !== 204;
+  const allChecksConclusive = checks.every((status) => status === 404);
+  return allChecksConclusive;
+}
+
+async function githubStatus(url: string, headers: Record<string, string>): Promise<number> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 2500);
+  try {
+    const response = await fetch(url, { headers, signal: controller.signal });
+    return response.status;
+  } catch {
+    return 0;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function isBot(login: string, type?: string): boolean {

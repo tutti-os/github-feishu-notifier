@@ -33,6 +33,15 @@ become `ready_for_review`.
 
 The Worker does not notify for review events, workflow events, pushes, releases, or internal organization member activity.
 
+Internal contributor filtering checks:
+
+- GitHub webhook `author_association`
+- `tutti-os` organization membership
+- `tutti-rd` team membership
+- repository collaborator status
+
+If GitHub identity checks fail or time out, the Worker does not notify. This is intentionally conservative to avoid posting internal team activity as external contribution activity.
+
 ## Cloudflare
 
 Worker name:
